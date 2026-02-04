@@ -12,7 +12,8 @@ import {
   Banknote,
   Plus,
   Undo2,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 import { RegistrationEntry, BankEntry } from './types';
 import { basicReconciliation } from './services/reconciliationService';
@@ -267,6 +268,21 @@ const App: React.FC = () => {
     setBankEntries((prev) => prev.filter((b) => b.id !== bankId));
   };
 
+  // Copy to clipboard for Excel (依輸入順序排序)
+  const [copySuccess, setCopySuccess] = useState(false);
+  const handleCopyForExcel = () => {
+    // 依輸入順序（原始順序）
+    const lines = registrations.map((reg) => {
+      const status = reg.status === 'matched' ? 'OK' : '未繳費';
+      return `${status}\t${reg.lastFiveDigits}\t${reg.playerName}`;
+    });
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  };
+
   // Handle bank-to-registration match
   const handleBankToRegMatch = (reg: RegistrationEntry) => {
     if (!manualMatchBank) return;
@@ -470,6 +486,19 @@ const App: React.FC = () => {
                 <option value="partial">待確認</option>
                 <option value="pending">未繳費</option>
               </select>
+              <button
+                onClick={handleCopyForExcel}
+                disabled={registrations.length === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  copySuccess
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:bg-slate-100 disabled:text-slate-400'
+                }`}
+                title="複製到剪貼簿（可貼到Excel）"
+              >
+                <Copy size={16} />
+                {copySuccess ? '已複製' : '複製'}
+              </button>
             </div>
           )}
         </div>
