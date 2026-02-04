@@ -1,0 +1,5 @@
+{
+  "name": "比賽對帳智慧助手",
+  "description": "專為賽事主辦方設計的自動化對帳工具，能快速比對報名名單與銀行流水帳，支援模糊比對與 AI 智慧解析。",
+  "requestFramePermissions": []
+}
