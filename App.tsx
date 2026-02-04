@@ -37,10 +37,10 @@ const App: React.FC = () => {
   // Auto-run basic matching whenever data changes
   useEffect(() => {
     if (registrations.length > 0 && bankEntries.length > 0) {
-      // Filter out manually matched entries before reconciliation
+      // Filter out manually matched entries and cancelled message matches before reconciliation
       const manualMatchedRegIds = new Set(
         registrations
-          .filter((r) => r.reconciliationNote?.startsWith('[人工新增]'))
+          .filter((r) => r.reconciliationNote?.startsWith('[人工新增]') || r.reconciliationNote?.startsWith('[已取消留言匹配]'))
           .map((r) => r.id)
       );
       const manualMatchedBankIds = new Set(
@@ -119,21 +119,31 @@ const App: React.FC = () => {
     setBankImportProgress(0);
     const CHUNK_SIZE = 80;
     const timestamp = Date.now();
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
     const newBanks: BankEntry[] = [];
     for (let i = 0; i < dataLines.length; i += CHUNK_SIZE) {
       const chunk = dataLines.slice(i, i + CHUNK_SIZE);
       chunk.forEach((line, idx) => {
         const cols = line.split('\t');
+        // 新格式：存(0), 後五碼(1), 轉帳留言(2)
+        const amount = parseFloat(cols[0]?.replace(/[^0-9.]/g, '') || '0');
+        const lastFiveDigits = (cols[1] || '').trim();
+        const message = cols[2] || '';
+
+        // 跳過無效資料
+        if (amount <= 0) return;
+
         newBanks.push({
           id: `bank-${timestamp}-${i + idx}`,
-          date: cols[0] || '',
-          time: cols[1] || '',
-          summary: cols[2] || '',
-          amount: parseFloat(cols[4]?.replace(/[^0-9.]/g, '') || '0'),
-          note: cols[5] || '',
-          bankInfo: cols[6] || '',
-          lastFiveDigits: cols[7] || '',
-          message: cols[8] || '',
+          date: dateStr,
+          time: '',
+          summary: '',
+          amount,
+          note: '',
+          bankInfo: '',
+          lastFiveDigits,
+          message,
           status: 'available'
         });
       });
@@ -216,6 +226,31 @@ const App: React.FC = () => {
       prev.map((r) =>
         r.id === reg.id
           ? { ...r, status: 'pending', matchedId: undefined, reconciliationNote: undefined }
+          : r
+      )
+    );
+  };
+
+  // Cancel message match (取消留言匹配)
+  const handleCancelMessageMatch = (reg: RegistrationEntry) => {
+    if (!reg.matchedId || !reg.messageMatched) return;
+
+    const bankId = reg.matchedId;
+
+    // Reset bank entry status
+    setBankEntries((prev) =>
+      prev.map((b) =>
+        b.id === bankId
+          ? { ...b, status: 'available', matchedId: undefined, messageMatched: undefined }
+          : b
+      )
+    );
+
+    // Reset registration status - keep reconciliationNote to prevent auto re-match
+    setRegistrations((prev) =>
+      prev.map((r) =>
+        r.id === reg.id
+          ? { ...r, status: 'pending', matchedId: undefined, reconciliationNote: '[已取消留言匹配] 請手動對應', messageMatched: undefined, matchedBankDigits: undefined }
           : r
       )
     );
@@ -354,7 +389,7 @@ const App: React.FC = () => {
               </div>
             </button>
 
-            <button 
+            <button
               onClick={() => setActiveModal('bank')}
               className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-start text-left"
             >
@@ -362,7 +397,7 @@ const App: React.FC = () => {
                 <Building2 size={28} />
               </div>
               <h3 className="text-lg font-bold mb-1">匯入銀行流水</h3>
-              <p className="text-sm text-slate-500">上傳對帳單、金額與轉帳備註</p>
+              <p className="text-sm text-slate-500">上傳存入金額、後五碼與轉帳留言</p>
               <div className="mt-4 text-xs font-semibold text-emerald-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 立即匯入 <ChevronDown size={14} />
               </div>
@@ -462,7 +497,11 @@ const App: React.FC = () => {
                       <tr key={reg.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-4 text-slate-500 font-mono text-sm">{index + 1}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {reg.status === 'matched' ? (
+                          {reg.status === 'matched' && reg.messageMatched ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-violet-50 text-violet-600">
+                              <CheckCircle2 size={12} /> 留言匹配
+                            </span>
+                          ) : reg.status === 'matched' ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600">
                               <CheckCircle2 size={12} /> 完全匹配
                             </span>
@@ -509,6 +548,15 @@ const App: React.FC = () => {
                               title="還原（取消人工新增）"
                             >
                               <Undo2 size={16} />
+                            </button>
+                          )}
+                          {reg.status === 'matched' && reg.messageMatched && (
+                            <button
+                              onClick={() => handleCancelMessageMatch(reg)}
+                              className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                              title="取消留言匹配"
+                            >
+                              <X size={16} />
                             </button>
                           )}
                         </td>
@@ -595,7 +643,7 @@ const App: React.FC = () => {
       {activeModal === 'bank' && (
         <DataInputModal
           title="匯入銀行流水"
-          placeholder="日期	時間	摘要	提	存	存摺備註	對方銀行	後五碼	轉帳留言..."
+          placeholder="存	後五碼	轉帳留言..."
           onImport={handleImportBank}
           onClose={() => setActiveModal(null)}
           importProgress={bankImportProgress}

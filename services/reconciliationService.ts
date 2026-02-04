@@ -106,5 +106,41 @@ export function basicReconciliation(
     }
   });
 
+  // 4. 留言匹配：未匹配銀行流水的留言內容是否包含選手名稱
+  updatedBank.forEach((bank) => {
+    if (bank.status !== 'available' || !bank.message) return;
+
+    // 尋找名稱出現在留言中的未匹配選手
+    const matchingReg = updatedRegs.find(
+      (reg) =>
+        (reg.status === 'pending' || reg.status === 'unmatched') &&
+        !reg.reconciliationNote &&
+        reg.playerName &&
+        bank.message.includes(reg.playerName)
+    );
+
+    if (matchingReg) {
+      const bankStr = `$${bank.amount.toLocaleString()}`;
+      const diff = bank.amount - matchingReg.totalAmount;
+
+      matchingReg.status = 'matched';
+      matchingReg.matchedId = bank.id;
+      matchingReg.messageMatched = true;
+      matchingReg.matchedBankDigits = bank.lastFiveDigits;
+
+      let note = `[留言匹配] 銀行留言含「${matchingReg.playerName}」，帳號後五碼: ${bank.lastFiveDigits || '無'} (非 ${matchingReg.lastFiveDigits})`;
+      if (diff > 0) {
+        note += `，多 $${diff.toLocaleString()}`;
+      } else if (diff < 0) {
+        note += `，少 $${Math.abs(diff).toLocaleString()}`;
+      }
+      setNote(matchingReg, note);
+
+      bank.status = 'matched';
+      bank.matchedId = matchingReg.id;
+      bank.messageMatched = true;
+    }
+  });
+
   return { registrations: updatedRegs, bankEntries: updatedBank };
 }

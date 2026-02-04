@@ -9,6 +9,10 @@ export interface RegistrationEntry {
   matchedId?: string;
   /** 對帳結果說明：加總是否足夠、多出/少出等 */
   reconciliationNote?: string;
+  /** 標記是否為留言匹配（帳號不同） */
+  messageMatched?: boolean;
+  /** 留言匹配時，記錄銀行的後五碼 */
+  matchedBankDigits?: string;
 }
 
 export interface BankEntry {
@@ -23,6 +27,8 @@ export interface BankEntry {
   message: string;
   status: 'available' | 'matched';
   matchedId?: string;
+  /** 標記是否為留言匹配（帳號不同） */
+  messageMatched?: boolean;
 }
 
 export interface ReconciliationResult {
