@@ -262,6 +262,11 @@ const App: React.FC = () => {
     setBankMatchSearch('');
   };
 
+  // Delete bank entry
+  const handleDeleteBankEntry = (bankId: string) => {
+    setBankEntries((prev) => prev.filter((b) => b.id !== bankId));
+  };
+
   // Handle bank-to-registration match
   const handleBankToRegMatch = (reg: RegistrationEntry) => {
     if (!manualMatchBank) return;
@@ -570,19 +575,16 @@ const App: React.FC = () => {
                 <thead>
                   <tr className="bg-slate-50 border-b">
                     <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase w-16">序號</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">日期</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">時間</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">金額</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">後五碼</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">對方銀行</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">轉帳留言/備註</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase w-20">操作</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">轉帳留言</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase w-28">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredUnmatchedBank.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-20 text-center text-slate-400">
+                      <td colSpan={5} className="px-6 py-20 text-center text-slate-400">
                         {bankEntries.length === 0
                           ? '尚未匯入銀行流水，請點擊上方按鈕匯入。'
                           : unmatchedBankEntries.length === 0
@@ -594,32 +596,36 @@ const App: React.FC = () => {
                     filteredUnmatchedBank.map((bank, index) => (
                       <tr key={bank.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-4 text-slate-500 font-mono text-sm">{index + 1}</td>
-                        <td className="px-6 py-4 text-slate-700">{bank.date}</td>
-                        <td className="px-6 py-4 text-slate-500">{bank.time}</td>
                         <td className="px-6 py-4 text-right font-mono font-medium text-amber-600">
                           ${bank.amount.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 font-mono text-slate-500">{bank.lastFiveDigits}</td>
-                        <td className="px-6 py-4 text-slate-600">{bank.bankInfo || '-'}</td>
+                        <td className="px-6 py-4 font-mono text-slate-500">{bank.lastFiveDigits || '-'}</td>
                         <td className="px-6 py-4">
                           <div className="flex-1 min-w-[200px]">
-                            {bank.message || bank.note ? (
-                              <span className="text-sm text-slate-700">
-                                {bank.message || bank.note}
-                              </span>
+                            {bank.message ? (
+                              <span className="text-sm text-slate-700">{bank.message}</span>
                             ) : (
-                              <span className="text-sm text-slate-400 italic">無備註</span>
+                              <span className="text-sm text-slate-400 italic">無留言</span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => openManualMatchFromBank(bank)}
-                            className="p-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
-                            title="對應選手"
-                          >
-                            <Users size={16} />
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => openManualMatchFromBank(bank)}
+                              className="p-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+                              title="對應選手"
+                            >
+                              <Users size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBankEntry(bank.id)}
+                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                              title="刪除"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
